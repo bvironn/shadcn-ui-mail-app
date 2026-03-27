@@ -19,9 +19,9 @@ export const POST: APIRoute = async ({ request, session }) => {
     }
     console.log("[LOGIN] Validation OK")
 
-    const imapHost = import.meta.env.IMAP_HOST
-    const smtpHost = import.meta.env.SMTP_HOST
-    console.log("[LOGIN] Env vars:", { imapHost, smtpHost, imapPort: import.meta.env.IMAP_PORT, smtpPort: import.meta.env.SMTP_PORT })
+    const imapHost = process.env.IMAP_HOST
+    const smtpHost = process.env.SMTP_HOST
+    console.log("[LOGIN] Env vars:", { imapHost, smtpHost, imapPort: process.env.IMAP_PORT, smtpPort: process.env.SMTP_PORT })
 
     if (!imapHost || !smtpHost) {
       console.log("[LOGIN] Missing env vars!")
@@ -33,9 +33,9 @@ export const POST: APIRoute = async ({ request, session }) => {
 
     const creds: MailCredentials = {
       imapHost,
-      imapPort: Number(import.meta.env.IMAP_PORT || 993),
+      imapPort: Number(process.env.IMAP_PORT || 993),
       smtpHost,
-      smtpPort: Number(import.meta.env.SMTP_PORT || 587),
+      smtpPort: Number(process.env.SMTP_PORT || 587),
       email: parsed.data.email,
       password: parsed.data.password,
       name: parsed.data.email.split("@")[0],
