@@ -132,7 +132,7 @@ function MailContent() {
 
   return (
     <TooltipProvider delayDuration={0}>
-      <div className="flex h-full">
+      <div className="flex h-full overflow-hidden">
         {/* Sidebar - iCloud style */}
         <aside
           className={cn(
@@ -244,7 +244,7 @@ function MailContent() {
         </aside>
 
         {/* Mail list panel - iCloud style */}
-        <div className="flex w-96 min-w-0 flex-col border-r overflow-hidden">
+        <div className="flex w-96 shrink-0 flex-col border-r overflow-hidden">
           <Tabs defaultValue="all" className="flex h-full flex-col">
             {/* Folder header + count */}
             <div className="px-4 pt-3 pb-1 border-b">

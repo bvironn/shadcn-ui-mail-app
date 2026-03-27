@@ -141,11 +141,24 @@ export function MailProvider({ children }: MailProviderProps) {
   }, [])
 
   const handleDelete = useCallback(async (uid: number) => {
-    const res = await fetch(`/api/mail/${uid}?folder=${encodeURIComponent(currentFolder)}`, {
-      method: "DELETE",
-    })
-    const data = await res.json()
-    if (data.error) throw new Error(data.error)
+    const trashPath = folders.find((f) => f.specialUse === "\\Trash")?.path
+    const isInTrash = trashPath && currentFolder === trashPath
+
+    if (isInTrash || !trashPath) {
+      const res = await fetch(`/api/mail/${uid}?folder=${encodeURIComponent(currentFolder)}`, {
+        method: "DELETE",
+      })
+      const data = await res.json()
+      if (data.error) throw new Error(data.error)
+    } else {
+      const res = await fetch(`/api/mail/${uid}?folder=${encodeURIComponent(currentFolder)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ moveTo: trashPath }),
+      })
+      const data = await res.json()
+      if (data.error) throw new Error(data.error)
+    }
 
     messageCache.current.delete(uid)
     setMessages((prev) => prev.filter((m) => m.uid !== uid))
@@ -153,7 +166,7 @@ export function MailProvider({ children }: MailProviderProps) {
       setSelectedUid(null)
       setSelectedMessage(null)
     }
-  }, [currentFolder, selectedUid])
+  }, [currentFolder, selectedUid, folders])
 
   const toggleRead = useCallback(async (uid: number, seen: boolean) => {
     const res = await fetch(`/api/mail/${uid}?folder=${encodeURIComponent(currentFolder)}`, {
@@ -267,13 +280,26 @@ export function MailProvider({ children }: MailProviderProps) {
 
   const handleBulkDelete = useCallback(async (uids: number[]) => {
     if (uids.length === 0) return
-    const res = await fetch("/api/mail/bulk-delete", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ folder: currentFolder, uids }),
-    })
-    const data = await res.json()
-    if (data.error) throw new Error(data.error)
+    const trashPath = folders.find((f) => f.specialUse === "\\Trash")?.path
+    const isInTrash = trashPath && currentFolder === trashPath
+
+    if (isInTrash || !trashPath) {
+      const res = await fetch("/api/mail/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ folder: currentFolder, uids }),
+      })
+      const data = await res.json()
+      if (data.error) throw new Error(data.error)
+    } else {
+      await Promise.all(uids.map((uid) =>
+        fetch(`/api/mail/${uid}?folder=${encodeURIComponent(currentFolder)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ moveTo: trashPath }),
+        }).then((r) => r.json()).then((d) => { if (d.error) throw new Error(d.error) })
+      ))
+    }
 
     const uidSet = new Set(uids)
     for (const uid of uids) messageCache.current.delete(uid)
@@ -282,7 +308,7 @@ export function MailProvider({ children }: MailProviderProps) {
       setSelectedUid(null)
       setSelectedMessage(null)
     }
-  }, [currentFolder, selectedUid])
+  }, [currentFolder, selectedUid, folders])
 
   const handleMove = useCallback(async (uid: number, destination: string) => {
     const res = await fetch(`/api/mail/${uid}?folder=${encodeURIComponent(currentFolder)}`, {
