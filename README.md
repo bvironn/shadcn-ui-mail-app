@@ -21,7 +21,7 @@ Webmail self-hosted que conecta a cualquier servidor IMAP/SMTP. Inspirado en el 
 - **Carpetas IMAP** — Bandeja de entrada, enviados, borradores, spam, papelera, archivado
 - **Cache inteligente** — Mensajes leidos se cachean en memoria, navegacion instantanea
 - **Avatars con color** — Cada remitente tiene un avatar unico generado por su nombre
-- **Interfaz en espanol** — UI completamente traducida, fechas relativas en espanol
+- **Interfaz en español** — UI completamente traducida, fechas relativas en español
 - **Responsive** — Layout de 3 paneles con sidebar colapsable
 
 ## Stack
