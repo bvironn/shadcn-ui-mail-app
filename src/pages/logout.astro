@@ -1,0 +1,7 @@
+---
+import { clearCredentials } from "@/lib/auth"
+
+await clearCredentials(Astro.session)
+
+return Astro.redirect("/login")
+---

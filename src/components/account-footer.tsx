@@ -15,25 +15,20 @@ interface AccountFooterProps {
 }
 
 export function AccountFooter({ isCollapsed, email, name }: AccountFooterProps) {
-  const handleLogout = async () => {
-    try {
-      await fetch("/api/auth/logout", { method: "POST" })
-    } catch {
-      // Redirigir al login aunque falle el fetch
-    }
-    window.location.href = "/login"
-  }
-
   if (isCollapsed) {
     return (
       <div className="flex flex-col items-center gap-1 p-2">
         <ThemeToggle />
         <Tooltip delayDuration={0}>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleLogout}>
-              <LogOut className="h-4 w-4" />
-              <span className="sr-only">Logout</span>
-            </Button>
+            <a href="/logout">
+              <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                <span>
+                  <LogOut className="h-4 w-4" />
+                  <span className="sr-only">Logout</span>
+                </span>
+              </Button>
+            </a>
           </TooltipTrigger>
           <TooltipContent side="right">Cerrar sesion ({email})</TooltipContent>
         </Tooltip>
@@ -54,10 +49,14 @@ export function AccountFooter({ isCollapsed, email, name }: AccountFooterProps) 
       </div>
       <div className="flex items-center justify-between">
         <ThemeToggle />
-        <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={handleLogout}>
-          <LogOut className="mr-1 h-3 w-3" />
-          Salir
-        </Button>
+        <a href="/logout">
+          <Button variant="ghost" size="sm" className="h-8 text-xs" asChild>
+            <span>
+              <LogOut className="mr-1 h-3 w-3" />
+              Salir
+            </span>
+          </Button>
+        </a>
       </div>
     </div>
   )
