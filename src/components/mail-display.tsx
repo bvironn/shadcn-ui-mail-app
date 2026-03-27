@@ -88,6 +88,11 @@ export function MailDisplay({ onReply }: MailDisplayProps) {
 
   const hasSelection = state.selectedUid !== null
 
+  const specialFolders = state.folders.reduce<Record<string, string>>((acc, f) => {
+    if (f.specialUse) acc[f.specialUse] = f.path
+    return acc
+  }, {})
+
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center p-2">
@@ -112,7 +117,12 @@ export function MailDisplay({ onReply }: MailDisplayProps) {
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" disabled={!hasSelection} onClick={() => handleMove("Archive")}>
+              <Button
+                variant="ghost"
+                size="icon"
+                disabled={!hasSelection || !specialFolders["\\Archive"]}
+                onClick={() => handleMove(specialFolders["\\Archive"] || "Archive")}
+              >
                 <Archive className="h-4 w-4" />
                 <span className="sr-only">Archivar</span>
               </Button>
@@ -121,7 +131,12 @@ export function MailDisplay({ onReply }: MailDisplayProps) {
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" disabled={!hasSelection} onClick={() => handleMove("Junk")}>
+              <Button
+                variant="ghost"
+                size="icon"
+                disabled={!hasSelection || !specialFolders["\\Junk"]}
+                onClick={() => handleMove(specialFolders["\\Junk"] || "Junk")}
+              >
                 <ArchiveX className="h-4 w-4" />
                 <span className="sr-only">Mover a spam</span>
               </Button>

@@ -280,6 +280,24 @@ export async function searchMessages(
   }
 }
 
+export async function deleteMessages(
+  creds: MailCredentials,
+  folder: string,
+  uids: number[]
+): Promise<void> {
+  if (uids.length === 0) return
+  const client = await getClient(creds)
+  const lock = await client.getMailboxLock(folder)
+
+  try {
+    const uidList = uids.join(",")
+    await client.messageFlagsAdd(uidList, ["\\Deleted"], { uid: true })
+    await client.messageDelete(uidList, { uid: true })
+  } finally {
+    lock.release()
+  }
+}
+
 export async function deleteMessage(
   creds: MailCredentials,
   folder: string,

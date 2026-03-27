@@ -74,6 +74,22 @@ export function MailProvider({ children }: MailProviderProps) {
     fetchMessages(currentFolder)
   }, [currentFolder, fetchMessages])
 
+  // SSE: real-time updates via IMAP IDLE
+  useEffect(() => {
+    const params = new URLSearchParams({ folder: currentFolder })
+    const es = new EventSource(`/api/mail/events?${params}`)
+
+    es.addEventListener("newmail", () => {
+      fetchMessages(currentFolder)
+      fetch("/api/mail/folders")
+        .then((r) => r.json())
+        .then((data) => { if (data.folders) setFolders(data.folders) })
+        .catch(() => {})
+    })
+
+    return () => es.close()
+  }, [currentFolder, fetchMessages])
+
   const changeFolder = useCallback((folder: string) => {
     setCurrentFolder(folder)
     setSelectedUid(null)
@@ -153,6 +169,13 @@ export function MailProvider({ children }: MailProviderProps) {
     )
     setSelectedMessage((prev) =>
       prev && prev.uid === uid ? { ...prev, seen } : prev
+    )
+    setFolders((prev) =>
+      prev.map((f) =>
+        f.path === currentFolder
+          ? { ...f, unseenCount: Math.max(0, f.unseenCount + (seen ? -1 : 1)) }
+          : f
+      )
     )
 
     const cached = messageCache.current.get(uid)
@@ -242,6 +265,25 @@ export function MailProvider({ children }: MailProviderProps) {
     setSearching(false)
   }, [])
 
+  const handleBulkDelete = useCallback(async (uids: number[]) => {
+    if (uids.length === 0) return
+    const res = await fetch("/api/mail/bulk-delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ folder: currentFolder, uids }),
+    })
+    const data = await res.json()
+    if (data.error) throw new Error(data.error)
+
+    const uidSet = new Set(uids)
+    for (const uid of uids) messageCache.current.delete(uid)
+    setMessages((prev) => prev.filter((m) => !uidSet.has(m.uid)))
+    if (selectedUid && uidSet.has(selectedUid)) {
+      setSelectedUid(null)
+      setSelectedMessage(null)
+    }
+  }, [currentFolder, selectedUid])
+
   const handleMove = useCallback(async (uid: number, destination: string) => {
     const res = await fetch(`/api/mail/${uid}?folder=${encodeURIComponent(currentFolder)}`, {
       method: "PATCH",
@@ -288,6 +330,7 @@ export function MailProvider({ children }: MailProviderProps) {
         moveMessage: handleMove,
         searchMessages: handleSearch,
         clearSearch,
+        bulkDelete: handleBulkDelete,
       }}
     >
       {children}

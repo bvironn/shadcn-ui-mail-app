@@ -38,6 +38,7 @@ interface MailContextType {
   moveMessage: (uid: number, destination: string) => Promise<void>
   searchMessages: (query: string, field: SearchField) => Promise<void>
   clearSearch: () => void
+  bulkDelete: (uids: number[]) => Promise<void>
 }
 
 export const MailContext = createContext<MailContextType | null>(null)
