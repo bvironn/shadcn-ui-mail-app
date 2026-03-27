@@ -1,0 +1,13 @@
+---
+import Layout from "@/layouts/Layout.astro"
+import { MailApp } from "@/components/mail"
+---
+
+<Layout title="Correo">
+  <div class="hidden flex-col md:flex h-screen">
+    <MailApp client:only="react" />
+  </div>
+  <div class="flex items-center justify-center h-screen md:hidden">
+    <p class="text-muted-foreground text-sm">Abre en una pantalla mas grande para ver el correo.</p>
+  </div>
+</Layout>

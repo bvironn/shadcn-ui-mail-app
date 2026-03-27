@@ -1,0 +1,14 @@
+---
+import Layout from "@/layouts/Layout.astro"
+import { LoginForm } from "@/components/login-form"
+import { getCredentials } from "@/lib/auth"
+
+const creds = await getCredentials(Astro.session)
+if (creds) {
+  return Astro.redirect("/")
+}
+---
+
+<Layout title="Iniciar sesion - Correo">
+  <LoginForm client:load />
+</Layout>

@@ -1,258 +1,306 @@
-import addDays from "date-fns/addDays"
-import addHours from "date-fns/addHours"
-import format from "date-fns/format"
-import nextSaturday from "date-fns/nextSaturday"
+import { useRef, useEffect, useState } from "react"
+import { format } from "date-fns/format"
 import {
   Archive,
   ArchiveX,
-  Clock,
   Forward,
-  MoreVertical,
+  Inbox,
+  Loader2,
+  Mail,
+  MailOpen,
   Reply,
   ReplyAll,
+  Star,
+  StarOff,
   Trash2,
 } from "lucide-react"
 
-import {
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from "@/components/ui/dropdown-menu"
 import {
   Avatar,
   AvatarFallback,
   AvatarImage,
 } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { Calendar }from "@/components/ui/calendar"
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Label } from "@/components/ui/label"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
-import { Separator } from  "@/components/ui/separator"
-import { Switch } from "@/components/ui/switch"
-import { Textarea }  from "@/components/ui/textarea"
+import { Separator } from "@/components/ui/separator"
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { Mail } from "../app/data"
+import { useMail } from "@/hooks/useMail"
 
 interface MailDisplayProps {
-  mail: Mail | null
+  onReply?: (defaults: { to?: string; subject?: string; body?: string }) => void
 }
 
-export function MailDisplay({ mail }: MailDisplayProps) {
-  const today = new Date()
+export function MailDisplay({ onReply }: MailDisplayProps) {
+  const { state, deleteMessage, toggleRead, toggleFlagged, moveMessage } = useMail()
+  const mail = state.selectedMessage
+
+  const handleDelete = async () => {
+    if (!mail) return
+    try { await deleteMessage(mail.uid) } catch {}
+  }
+
+  const handleToggleRead = async () => {
+    if (!mail) return
+    try { await toggleRead(mail.uid, !mail.seen) } catch {}
+  }
+
+  const handleToggleFlagged = async () => {
+    if (!mail) return
+    try { await toggleFlagged(mail.uid, !mail.flagged) } catch {}
+  }
+
+  const handleMove = async (destination: string) => {
+    if (!mail) return
+    try { await moveMessage(mail.uid, destination) } catch {}
+  }
+
+  const handleReply = () => {
+    if (!mail) return
+    onReply?.({
+      to: mail.from.address,
+      subject: mail.subject.startsWith("Re:") ? mail.subject : `Re: ${mail.subject}`,
+      body: `\n\n--- ${mail.from.name || mail.from.address} escribio ---\n${mail.text}`,
+    })
+  }
+
+  const handleReplyAll = () => {
+    if (!mail) return
+    const allTo = [mail.from.address, ...mail.to.map((t) => t.address), ...mail.cc.map((c) => c.address)]
+      .filter((v, i, a) => a.indexOf(v) === i)
+      .join(", ")
+    onReply?.({
+      to: allTo,
+      subject: mail.subject.startsWith("Re:") ? mail.subject : `Re: ${mail.subject}`,
+      body: `\n\n--- ${mail.from.name || mail.from.address} escribio ---\n${mail.text}`,
+    })
+  }
+
+  const handleForward = () => {
+    if (!mail) return
+    onReply?.({
+      subject: mail.subject.startsWith("Fwd:") ? mail.subject : `Fwd: ${mail.subject}`,
+      body: `\n\n---------- Mensaje reenviado ----------\nDe: ${mail.from.name || mail.from.address}\nFecha: ${format(new Date(mail.date), "PPpp")}\nAsunto: ${mail.subject}\n\n${mail.text}`,
+    })
+  }
+
+  const hasSelection = state.selectedUid !== null
 
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center p-2">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" disabled={!mail}>
+              <Button variant="ghost" size="icon" disabled={!hasSelection} onClick={handleToggleRead}>
+                {mail?.seen ? <Mail className="h-4 w-4" /> : <MailOpen className="h-4 w-4" />}
+                <span className="sr-only">{mail?.seen ? "Marcar como no leido" : "Marcar como leido"}</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{mail?.seen ? "Marcar como no leido" : "Marcar como leido"}</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" disabled={!hasSelection} onClick={handleToggleFlagged}>
+                {mail?.flagged ? <StarOff className="h-4 w-4" /> : <Star className="h-4 w-4" />}
+                <span className="sr-only">{mail?.flagged ? "Quitar estrella" : "Destacar"}</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{mail?.flagged ? "Quitar estrella" : "Destacar"}</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" disabled={!hasSelection} onClick={() => handleMove("Archive")}>
                 <Archive className="h-4 w-4" />
-                <span className="sr-only">Archive</span>
+                <span className="sr-only">Archivar</span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Archive</TooltipContent>
+            <TooltipContent>Archivar</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" disabled={!mail}>
+              <Button variant="ghost" size="icon" disabled={!hasSelection} onClick={() => handleMove("Junk")}>
                 <ArchiveX className="h-4 w-4" />
-                <span className="sr-only">Move to junk</span>
+                <span className="sr-only">Mover a spam</span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Move to junk</TooltipContent>
+            <TooltipContent>Mover a spam</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" disabled={!mail}>
+              <Button variant="ghost" size="icon" disabled={!hasSelection} onClick={handleDelete}>
                 <Trash2 className="h-4 w-4" />
-                <span className="sr-only">Move to trash</span>
+                <span className="sr-only">Eliminar</span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Move to trash</TooltipContent>
-          </Tooltip>
-          <Separator orientation="vertical" className="mx-1 h-6" />
-          <Tooltip>
-            <Popover>
-              <PopoverTrigger asChild>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" disabled={!mail}>
-                    <Clock className="h-4 w-4" />
-                    <span className="sr-only">Snooze</span>
-                  </Button>
-                </TooltipTrigger>
-              </PopoverTrigger>
-              <PopoverContent className="flex w-[535px] p-0">
-                <div className="flex flex-col gap-2 border-r px-2 py-4">
-                  <div className="px-4 text-sm font-medium">Snooze until</div>
-                  <div className="grid min-w-[250px] gap-1">
-                    <Button
-                      variant="ghost"
-                      className="justify-start font-normal"
-                    >
-                      Later today{" "}
-                      <span className="ml-auto text-muted-foreground">
-                        {format(addHours(today, 4), "E, h:m b")}
-                      </span>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      className="justify-start font-normal"
-                    >
-                      Tomorrow
-                      <span className="ml-auto text-muted-foreground">
-                        {format(addDays(today, 1), "E, h:m b")}
-                      </span>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      className="justify-start font-normal"
-                    >
-                      This weekend
-                      <span className="ml-auto text-muted-foreground">
-                        {format(nextSaturday(today), "E, h:m b")}
-                      </span>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      className="justify-start font-normal"
-                    >
-                      Next week
-                      <span className="ml-auto text-muted-foreground">
-                        {format(addDays(today, 7), "E, h:m b")}
-                      </span>
-                    </Button>
-                  </div>
-                </div>
-                <div className="p-2">
-                  <Calendar />
-                </div>
-              </PopoverContent>
-            </Popover>
-            <TooltipContent>Snooze</TooltipContent>
+            <TooltipContent>Eliminar</TooltipContent>
           </Tooltip>
         </div>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-1">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" disabled={!mail}>
+              <Button variant="ghost" size="icon" disabled={!hasSelection} onClick={handleReply}>
                 <Reply className="h-4 w-4" />
-                <span className="sr-only">Reply</span>
+                <span className="sr-only">Responder</span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Reply</TooltipContent>
+            <TooltipContent>Responder</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" disabled={!mail}>
+              <Button variant="ghost" size="icon" disabled={!hasSelection} onClick={handleReplyAll}>
                 <ReplyAll className="h-4 w-4" />
-                <span className="sr-only">Reply all</span>
+                <span className="sr-only">Responder a todos</span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Reply all</TooltipContent>
+            <TooltipContent>Responder a todos</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" disabled={!mail}>
+              <Button variant="ghost" size="icon" disabled={!hasSelection} onClick={handleForward}>
                 <Forward className="h-4 w-4" />
-                <span className="sr-only">Forward</span>
+                <span className="sr-only">Reenviar</span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Forward</TooltipContent>
+            <TooltipContent>Reenviar</TooltipContent>
           </Tooltip>
         </div>
-        <Separator orientation="vertical" className="mx-2 h-6" />
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" disabled={!mail}>
-              <MoreVertical className="h-4 w-4" />
-              <span className="sr-only">More</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem>Mark as unread</DropdownMenuItem>
-            <DropdownMenuItem>Star thread</DropdownMenuItem>
-            <DropdownMenuItem>Add label</DropdownMenuItem>
-            <DropdownMenuItem>Mute thread</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
-      <Separator />
-      {mail ? (
-        <div className="flex flex-1 flex-col">
-          <div className="flex items-start p-4">
-            <div className="flex items-start gap-4 text-sm">
-              <Avatar>
-                <AvatarImage alt={mail.name} />
-                <AvatarFallback>
-                  {mail.name
-                    .split(" ")
-                    .map((chunk) => chunk[0])
-                    .join("")}
-                </AvatarFallback>
-              </Avatar>
-              <div className="grid gap-1">
-                <div className="font-semibold">{mail.name}</div>
-                <div className="line-clamp-1 text-xs">{mail.subject}</div>
-                <div className="line-clamp-1 text-xs">
-                  <span className="font-medium">Reply-To:</span> {mail.email}
-                </div>
-              </div>
+      {state.selectedUid && !mail ? (
+        <div className="flex flex-1 items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : mail ? (
+        <div className="flex flex-1 flex-col min-h-0">
+          <div className="flex items-center gap-3 px-4 py-2">
+            <Avatar className="h-8 w-8">
+              <AvatarImage alt={mail.from.name} />
+              <AvatarFallback className="text-xs">
+                {(mail.from.name || mail.from.address)
+                  .split(" ")
+                  .map((chunk) => chunk[0])
+                  .join("")
+                  .substring(0, 2)
+                  .toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex items-center gap-2 min-w-0 text-sm">
+              <span className="font-semibold truncate">{mail.from.name || mail.from.address}</span>
+              <span className="text-xs text-muted-foreground truncate">&lt;{mail.from.address}&gt;</span>
+              {mail.to.length > 0 && (
+                <span className="text-xs text-muted-foreground truncate">
+                  &rarr; {mail.to.map((t) => t.address).join(", ")}
+                </span>
+              )}
             </div>
-            {mail.date && (
-              <div className="ml-auto text-xs text-muted-foreground">
-                {format(new Date(mail.date), "PPpp")}
-              </div>
-            )}
+            <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+              {format(new Date(mail.date), "PPpp")}
+            </span>
           </div>
           <Separator />
-          <div className="flex-1 whitespace-pre-wrap p-4 text-sm">
-            {mail.text}
-          </div>
-          <Separator className="mt-auto" />
-          <div className="p-4">
-            <form>
-              <div className="grid gap-4">
-                <Textarea
-                  className="p-4"
-                  placeholder={`Reply ${mail.name}...`}
-                />
-                <div className="flex items-center">
-                  <Label
-                    htmlFor="mute"
-                    className="flex items-center gap-2 text-xs font-normal"
-                  >
-                    <Switch id="mute" aria-label="Mute thread" /> Mute this
-                    thread
-                  </Label>
-                  <Button
-                    onClick={(e) => e.preventDefault()}
-                    size="sm"
-                    className="ml-auto"
-                  >
-                    Send
-                  </Button>
-                </div>
-              </div>
-            </form>
-          </div>
+          {mail.html ? (
+            <div className="flex-1 min-h-0 overflow-auto">
+              <MailIframe html={mail.html} />
+            </div>
+          ) : (
+            <div className="flex-1 min-h-0 overflow-auto p-4 text-sm whitespace-pre-wrap">
+              {mail.text}
+            </div>
+          )}
         </div>
       ) : (
         <div className="p-8 text-center text-muted-foreground">
-          No message selected
+          Selecciona un mensaje
         </div>
       )}
     </div>
+  )
+}
+
+function MailIframe({ html }: { html: string }) {
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const [isDark, setIsDark] = useState(
+    () => document.documentElement.classList.contains("dark")
+  )
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDark(document.documentElement.classList.contains("dark"))
+    })
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    })
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    const iframe = iframeRef.current
+    if (!iframe) return
+
+    const doc = iframe.contentDocument
+    if (!doc) return
+
+    doc.open()
+    doc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <style>
+            html {
+              color-scheme: ${isDark ? "dark" : "light"};
+            }
+            body {
+              margin: 0;
+              font-family: ui-sans-serif, system-ui, sans-serif;
+              font-size: 14px;
+              line-height: 1.6;
+              color: ${isDark ? "#e5e5e5" : "#1a1a1a"};
+              background: ${isDark ? "#171717" : "white"};
+              word-break: break-word;
+            }
+            body.dark-filter {
+              filter: invert(0.88) hue-rotate(180deg);
+            }
+            body.dark-filter img,
+            body.dark-filter video,
+            body.dark-filter svg,
+            body.dark-filter [background],
+            body.dark-filter [style*="background"] {
+              filter: invert(1) hue-rotate(180deg);
+            }
+            img { max-width: 100%; height: auto; }
+            a { color: ${isDark ? "#60a5fa" : "#2563eb"}; }
+            pre { overflow-x: auto; }
+            table { max-width: 100%; }
+          </style>
+        </head>
+        <body class="${isDark ? "dark-filter" : ""}">${html}</body>
+      </html>
+    `)
+    doc.close()
+
+    const resize = () => {
+      if (iframe.contentDocument?.body) {
+        iframe.style.height = iframe.contentDocument.body.scrollHeight + "px"
+      }
+    }
+
+    iframe.addEventListener("load", resize)
+    resize()
+
+    return () => iframe.removeEventListener("load", resize)
+  }, [html, isDark])
+
+  return (
+    <iframe
+      ref={iframeRef}
+      className="w-full border-0"
+      sandbox="allow-same-origin"
+      title="Contenido del correo"
+      style={{ minHeight: 200 }}
+    />
   )
 }

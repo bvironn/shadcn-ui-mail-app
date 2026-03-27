@@ -1,224 +1,327 @@
-"use client"
-
-import * as React from "react"
+import { useState } from "react"
 import {
-  AlertCircle,
   Archive,
   ArchiveX,
   File,
   Inbox,
-  MessagesSquare,
+  Loader2,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Pencil,
+  RefreshCw,
   Search,
   Send,
-  ShoppingCart,
   Trash2,
-  Users2,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable"
-
-import { Separator } from "@/components/ui/separator"
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs"
-import { TooltipProvider } from "@/components/ui/tooltip"
-import { AccountSwitcher } from "@/components/account-switcher"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { MailDisplay } from "@/components/mail-display"
 import { MailList } from "@/components/mail-list"
 import { Nav } from "@/components/nav"
-import { type Mail } from "../app/data"
-import { useMail } from "../app/use-mail"
+import { AccountFooter } from "@/components/account-footer"
+import { ComposeModal } from "@/components/compose-modal"
+import { MailProvider } from "@/components/mail-provider"
+import { useMail } from "@/hooks/useMail"
 
-interface MailProps {
-  accounts: {
-    label: string
-    email: string
-    icon: React.ReactNode
-  }[]
-  mails: Mail[]
-  defaultLayout: number[] | undefined
-  defaultCollapsed?: boolean
-  navCollapsedSize: number
-}
+function MailContent() {
+  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [composeOpen, setComposeOpen] = useState(false)
+  const [composeDefaults, setComposeDefaults] = useState<{
+    to?: string
+    subject?: string
+    body?: string
+  }>({})
+  const { state, changeFolder, refreshMessages } = useMail()
 
-export function Mail({
-  accounts,
-  mails,
-  defaultLayout = [265, 440, 655],
-  defaultCollapsed = false,
-  navCollapsedSize,
-}: MailProps) {
-  const [isCollapsed, setIsCollapsed] = React.useState(defaultCollapsed)
-  const [mail] = useMail()
+  const openCompose = (defaults: { to?: string; subject?: string; body?: string }) => {
+    setComposeDefaults(defaults)
+    setComposeOpen(true)
+  }
+
+  const handleReply = (uid: number) => {
+    const msg = state.messages.find((m) => m.uid === uid)
+    if (!msg) return
+    openCompose({
+      to: msg.from.address,
+      subject: msg.subject.startsWith("Re:") ? msg.subject : `Re: ${msg.subject}`,
+    })
+  }
+  const handleReplyAll = (uid: number) => {
+    const msg = state.messages.find((m) => m.uid === uid)
+    if (!msg) return
+    const allTo = [msg.from.address, ...msg.to.map((t) => t.address)]
+      .filter((v, i, a) => a.indexOf(v) === i)
+      .join(", ")
+    openCompose({
+      to: allTo,
+      subject: msg.subject.startsWith("Re:") ? msg.subject : `Re: ${msg.subject}`,
+    })
+  }
+  const handleForward = (uid: number) => {
+    const msg = state.messages.find((m) => m.uid === uid)
+    if (!msg) return
+    openCompose({
+      subject: msg.subject.startsWith("Fwd:") ? msg.subject : `Fwd: ${msg.subject}`,
+      body: `\n\n---------- Mensaje reenviado ----------\nDe: ${msg.from.name || msg.from.address}\nFecha: ${msg.date}\nAsunto: ${msg.subject}\n`,
+    })
+  }
+
+  const FOLDER_ORDER = ["\\Inbox", "\\Drafts", "\\Sent", "\\Junk", "\\Trash", "\\Archive"] as const
+  const iconMap: Record<string, typeof Inbox> = {
+    "\\Inbox": Inbox,
+    "\\Drafts": File,
+    "\\Sent": Send,
+    "\\Junk": ArchiveX,
+    "\\Trash": Trash2,
+    "\\Archive": Archive,
+  }
+  const nameMap: Record<string, string> = {
+    "\\Inbox": "Bandeja de entrada",
+    "\\Drafts": "Borradores",
+    "\\Sent": "Enviados",
+    "\\Junk": "Spam",
+    "\\Trash": "Papelera",
+    "\\Archive": "Archivado",
+  }
+
+  const folderNav = FOLDER_ORDER
+    .map((key) => state.folders.find((f) => f.specialUse === key || (key === "\\Inbox" && f.path === "INBOX")))
+    .filter(Boolean)
+    .map((f) => ({
+      title: (f!.specialUse && nameMap[f!.specialUse!]) || f!.name,
+      label: f!.unseenCount > 0 ? String(f!.unseenCount) : "",
+      icon: (f!.specialUse && iconMap[f!.specialUse!]) || Inbox,
+      variant: (f!.path === state.currentFolder ? "default" : "ghost") as "default" | "ghost",
+      path: f!.path,
+    }))
+
+  const defaultLinks = [
+    { title: "Bandeja de entrada", label: "", icon: Inbox, variant: "default" as const },
+    { title: "Borradores", label: "", icon: File, variant: "ghost" as const },
+    { title: "Enviados", label: "", icon: Send, variant: "ghost" as const },
+    { title: "Spam", label: "", icon: ArchiveX, variant: "ghost" as const },
+    { title: "Papelera", label: "", icon: Trash2, variant: "ghost" as const },
+    { title: "Archivado", label: "", icon: Archive, variant: "ghost" as const },
+  ]
+
+  const currentFolderName = state.currentFolder === "INBOX"
+    ? "Bandeja de entrada"
+    : folderNav.find((f) => f.path === state.currentFolder)?.title || state.currentFolder
+
+  const totalMessages = state.total
 
   return (
     <TooltipProvider delayDuration={0}>
-      <ResizablePanelGroup
-        direction="horizontal"
-        onLayout={(sizes: number[]) => {
-          document.cookie = `react-resizable-panels:layout=${JSON.stringify(
-            sizes
-          )}`
-        }}
-        className="h-full max-h-[800px] items-stretch"
-      >
-        <ResizablePanel
-          defaultSize={defaultLayout[0]}
-          collapsedSize={navCollapsedSize}
-          collapsible={true}
-          minSize={15}
-          maxSize={20}
-          onCollapse={(collapsed) => {
-            setIsCollapsed(collapsed)
-            document.cookie = `react-resizable-panels:collapsed=${JSON.stringify(
-              collapsed
-            )}`
-          }}
+      <div className="flex h-full">
+        {/* Sidebar - iCloud style */}
+        <aside
           className={cn(
-            isCollapsed &&
-              "min-w-[50px] transition-all duration-300 ease-in-out"
+            "flex flex-col border-r transition-all duration-300 ease-in-out",
+            isCollapsed ? "w-14" : "w-52"
           )}
         >
+          {/* Top bar: toggle | Mail | refresh */}
           <div
             className={cn(
-              "flex h-[52px] items-center justify-center",
-              isCollapsed ? "h-[52px]" : "px-2"
+              "flex items-center px-2 py-2 border-b",
+              isCollapsed ? "justify-center" : "justify-between"
             )}
           >
-            <AccountSwitcher isCollapsed={isCollapsed} accounts={accounts} />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setIsCollapsed(!isCollapsed)}
+                >
+                  {isCollapsed ? (
+                    <PanelLeftOpen className="h-4 w-4" />
+                  ) : (
+                    <PanelLeftClose className="h-4 w-4" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                {isCollapsed ? "Expandir" : "Colapsar"}
+              </TooltipContent>
+            </Tooltip>
+            {!isCollapsed && (
+              <>
+                <span className="text-sm font-semibold">Mail</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={refreshMessages}
+                      disabled={state.loading}
+                    >
+                      <RefreshCw className={cn("h-4 w-4", state.loading && "animate-spin")} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Actualizar</TooltipContent>
+                </Tooltip>
+              </>
+            )}
           </div>
-          <Separator />
-          <Nav
-            isCollapsed={isCollapsed}
-            links={[
-              {
-                title: "Inbox",
-                label: "128",
-                icon: Inbox,
-                variant: "default",
-              },
-              {
-                title: "Drafts",
-                label: "9",
-                icon: File,
-                variant: "ghost",
-              },
-              {
-                title: "Sent",
-                label: "",
-                icon: Send,
-                variant: "ghost",
-              },
-              {
-                title: "Junk",
-                label: "23",
-                icon: ArchiveX,
-                variant: "ghost",
-              },
-              {
-                title: "Trash",
-                label: "",
-                icon: Trash2,
-                variant: "ghost",
-              },
-              {
-                title: "Archive",
-                label: "",
-                icon: Archive,
-                variant: "ghost",
-              },
-            ]}
-          />
-          <Separator />
-          <Nav
-            isCollapsed={isCollapsed}
-            links={[
-              {
-                title: "Social",
-                label: "972",
-                icon: Users2,
-                variant: "ghost",
-              },
-              {
-                title: "Updates",
-                label: "342",
-                icon: AlertCircle,
-                variant: "ghost",
-              },
-              {
-                title: "Forums",
-                label: "128",
-                icon: MessagesSquare,
-                variant: "ghost",
-              },
-              {
-                title: "Shopping",
-                label: "8",
-                icon: ShoppingCart,
-                variant: "ghost",
-              },
-              {
-                title: "Promotions",
-                label: "21",
-                icon: Archive,
-                variant: "ghost",
-              },
-            ]}
-          />
-        </ResizablePanel>
-        <ResizableHandle withHandle />
-        <ResizablePanel defaultSize={defaultLayout[1]} minSize={30}>
-          <Tabs defaultValue="all">
-            <div className="flex items-center px-4 py-2">
-              <h1 className="text-xl font-bold">Inbox</h1>
-              <TabsList className="ml-auto">
-                <TabsTrigger
-                  value="all"
-                  className="text-zinc-600 dark:text-zinc-200"
-                >
-                  All mail
-                </TabsTrigger>
-                <TabsTrigger
-                  value="unread"
-                  className="text-zinc-600 dark:text-zinc-200"
-                >
-                  Unread
-                </TabsTrigger>
-              </TabsList>
+
+          {/* Compose button */}
+          {!isCollapsed ? (
+            <div className="px-3 py-3">
+              <Button
+                size="sm"
+                className="w-full gap-2 font-medium shadow-sm"
+                onClick={() => setComposeOpen(true)}
+              >
+                <Pencil className="h-4 w-4" />
+                Redactar
+              </Button>
             </div>
-            <Separator />
-            <div className="bg-background/95 p-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-              <form>
-                <div className="relative">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Search" className="pl-8" />
+          ) : (
+            <div className="flex justify-center py-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => setComposeOpen(true)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">Redactar</TooltipContent>
+              </Tooltip>
+            </div>
+          )}
+
+          {/* Buzones section */}
+          <div className="flex-1 overflow-auto">
+            {!isCollapsed && (
+              <div className="px-3 pt-3 pb-1">
+                <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  Buzones
+                </span>
+              </div>
+            )}
+            <Nav
+              isCollapsed={isCollapsed}
+              links={folderNav.length > 0 ? folderNav : defaultLinks}
+              onLinkClick={(path) => changeFolder(path)}
+            />
+          </div>
+
+          {/* Account footer */}
+          {state.user && (
+            <AccountFooter
+              isCollapsed={isCollapsed}
+              email={state.user.email}
+              name={state.user.name}
+            />
+          )}
+        </aside>
+
+        {/* Mail list panel - iCloud style */}
+        <div className="flex w-96 flex-col border-r">
+          <Tabs defaultValue="all" className="flex h-full flex-col">
+            {/* Folder header + count */}
+            <div className="px-4 pt-3 pb-1 border-b">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-lg font-bold leading-tight">{currentFolderName}</h1>
+                  <span className="text-xs text-muted-foreground">
+                    {totalMessages} {totalMessages === 1 ? "mensaje" : "mensajes"}
+                  </span>
                 </div>
-              </form>
+                <TabsList>
+                  <TabsTrigger value="all" className="text-zinc-600 dark:text-zinc-200">
+                    Todos
+                  </TabsTrigger>
+                  <TabsTrigger value="unread" className="text-zinc-600 dark:text-zinc-200">
+                    No leidos
+                  </TabsTrigger>
+                </TabsList>
+              </div>
             </div>
-            <TabsContent value="all" className="m-0">
-              <MailList items={mails} />
-            </TabsContent>
-            <TabsContent value="unread" className="m-0">
-              <MailList items={mails.filter((item) => !item.read)} />
-            </TabsContent>
+            {/* Search */}
+            <div className="p-3">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Buscar" className="pl-8 h-9" />
+              </div>
+            </div>
+            {state.loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : state.error ? (
+              <div className="p-4 text-center text-sm text-destructive">
+                {state.error}
+              </div>
+            ) : (
+              <>
+                <TabsContent value="all" className="m-0 flex-1 overflow-hidden">
+                  <MailList
+                    items={state.messages}
+                    onReply={handleReply}
+                    onReplyAll={handleReplyAll}
+                    onForward={handleForward}
+                  />
+                </TabsContent>
+                <TabsContent value="unread" className="m-0 flex-1 overflow-hidden">
+                  <MailList
+                    items={state.messages.filter((m) => !m.seen)}
+                    onReply={handleReply}
+                    onReplyAll={handleReplyAll}
+                    onForward={handleForward}
+                  />
+                </TabsContent>
+              </>
+            )}
           </Tabs>
-        </ResizablePanel>
-        <ResizableHandle withHandle />
-        <ResizablePanel defaultSize={defaultLayout[2]}>
-          <MailDisplay
-            mail={mails.find((item) => item.id === mail.selected) || null}
-          />
-        </ResizablePanel>
-      </ResizablePanelGroup>
+        </div>
+
+        {/* Mail display panel */}
+        <div className="flex flex-1 flex-col">
+          <MailDisplay onReply={(defaults) => {
+            setComposeDefaults(defaults)
+            setComposeOpen(true)
+          }} />
+        </div>
+      </div>
+
+      <ComposeModal
+        open={composeOpen}
+        onOpenChange={(open) => {
+          setComposeOpen(open)
+          if (!open) setComposeDefaults({})
+        }}
+        defaults={composeDefaults}
+      />
     </TooltipProvider>
+  )
+}
+
+export function MailApp() {
+  return (
+    <MailProvider>
+      <MailContent />
+    </MailProvider>
   )
 }
