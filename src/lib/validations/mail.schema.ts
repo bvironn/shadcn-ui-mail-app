@@ -21,5 +21,12 @@ export const folderSchema = z.object({
   folder: z.string().min(1, "Folder path is required"),
 })
 
+export const searchMailSchema = z.object({
+  folder: z.string().default("INBOX"),
+  query: z.string().min(1, "Search query is required"),
+  field: z.enum(["from", "subject", "body"]).default("from"),
+})
+
 export type SendMailInput = z.infer<typeof sendMailSchema>
 export type ListMailInput = z.infer<typeof listMailSchema>
+export type SearchMailInput = z.infer<typeof searchMailSchema>

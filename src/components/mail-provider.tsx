@@ -17,6 +17,10 @@ export function MailProvider({ children }: MailProviderProps) {
   const [error, setError] = useState<string | null>(null)
   const [total, setTotal] = useState(0)
   const [user, setUser] = useState<{ email: string; name: string } | null>(null)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [searchField, setSearchField] = useState<"from" | "subject" | "body">("from")
+  const [searchResults, setSearchResults] = useState<MailEnvelope[] | null>(null)
+  const [searching, setSearching] = useState(false)
   const foldersLoaded = useRef(false)
   const messageCache = useRef<Map<number, MailMessage>>(new Map())
 
@@ -70,35 +74,12 @@ export function MailProvider({ children }: MailProviderProps) {
     fetchMessages(currentFolder)
   }, [currentFolder, fetchMessages])
 
-  const selectMessage = useCallback((uid: number) => {
-    setSelectedUid(uid)
-
-    const cached = messageCache.current.get(uid)
-    if (cached) {
-      setSelectedMessage(cached)
-      return
-    }
-
-    setSelectedMessage(null)
-    fetch(`/api/mail/${uid}?folder=${encodeURIComponent(currentFolder)}`)
-      .then((r) => {
-        if (r.status === 401) { window.location.href = "/login"; return null }
-        return r.json()
-      })
-      .then((data) => {
-        if (!data || data.error) return
-        messageCache.current.set(uid, data.message)
-        setSelectedMessage(data.message)
-      })
-      .catch((err) => {
-        console.error("Failed to fetch message:", err)
-      })
-  }, [currentFolder])
-
   const changeFolder = useCallback((folder: string) => {
     setCurrentFolder(folder)
     setSelectedUid(null)
     setSelectedMessage(null)
+    setSearchQuery("")
+    setSearchResults(null)
     messageCache.current.clear()
   }, [])
 
@@ -180,6 +161,36 @@ export function MailProvider({ children }: MailProviderProps) {
     }
   }, [currentFolder])
 
+  const selectMessage = useCallback((uid: number) => {
+    setSelectedUid(uid)
+
+    const envelope = messages.find((m) => m.uid === uid)
+    if (envelope && !envelope.seen) {
+      toggleRead(uid, true).catch(() => {})
+    }
+
+    const cached = messageCache.current.get(uid)
+    if (cached) {
+      setSelectedMessage(cached)
+      return
+    }
+
+    setSelectedMessage(null)
+    fetch(`/api/mail/${uid}?folder=${encodeURIComponent(currentFolder)}`)
+      .then((r) => {
+        if (r.status === 401) { window.location.href = "/login"; return null }
+        return r.json()
+      })
+      .then((data) => {
+        if (!data || data.error) return
+        messageCache.current.set(uid, data.message)
+        setSelectedMessage(data.message)
+      })
+      .catch((err) => {
+        console.error("Failed to fetch message:", err)
+      })
+  }, [currentFolder, messages, toggleRead])
+
   const toggleFlagged = useCallback(async (uid: number, flagged: boolean) => {
     const res = await fetch(`/api/mail/${uid}?folder=${encodeURIComponent(currentFolder)}`, {
       method: "PATCH",
@@ -201,6 +212,35 @@ export function MailProvider({ children }: MailProviderProps) {
       messageCache.current.set(uid, { ...cached, flagged })
     }
   }, [currentFolder])
+
+  const handleSearch = useCallback(async (query: string, field: "from" | "subject" | "body") => {
+    setSearchQuery(query)
+    setSearchField(field)
+    setSearching(true)
+    try {
+      const params = new URLSearchParams({
+        folder: currentFolder,
+        query,
+        field,
+      })
+      const res = await fetch(`/api/mail/search?${params}`)
+      if (res.status === 401) { window.location.href = "/login"; return }
+      const data = await res.json()
+      if (data.error) throw new Error(data.error)
+      setSearchResults(data.messages)
+    } catch (err) {
+      console.error("Search failed:", err)
+      setSearchResults([])
+    } finally {
+      setSearching(false)
+    }
+  }, [currentFolder])
+
+  const clearSearch = useCallback(() => {
+    setSearchQuery("")
+    setSearchResults(null)
+    setSearching(false)
+  }, [])
 
   const handleMove = useCallback(async (uid: number, destination: string) => {
     const res = await fetch(`/api/mail/${uid}?folder=${encodeURIComponent(currentFolder)}`, {
@@ -232,6 +272,10 @@ export function MailProvider({ children }: MailProviderProps) {
           error,
           total,
           user,
+          searchQuery,
+          searchField,
+          searchResults,
+          searching,
         },
         selectMessage,
         changeFolder,
@@ -242,6 +286,8 @@ export function MailProvider({ children }: MailProviderProps) {
         toggleRead,
         toggleFlagged,
         moveMessage: handleMove,
+        searchMessages: handleSearch,
+        clearSearch,
       }}
     >
       {children}

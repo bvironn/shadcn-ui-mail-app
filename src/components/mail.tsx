@@ -1,10 +1,12 @@
-import { useState } from "react"
+import { useState, useRef } from "react"
 import {
   Archive,
   ArchiveX,
+  CircleUser,
   File,
   Inbox,
   Loader2,
+  Mail,
   PanelLeftClose,
   PanelLeftOpen,
   Pencil,
@@ -12,6 +14,7 @@ import {
   Search,
   Send,
   Trash2,
+  X,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -45,7 +48,10 @@ function MailContent() {
     subject?: string
     body?: string
   }>({})
-  const { state, changeFolder, refreshMessages } = useMail()
+  const { state, changeFolder, refreshMessages, searchMessages, clearSearch } = useMail()
+  const [searchInput, setSearchInput] = useState("")
+  const [searchFocused, setSearchFocused] = useState(false)
+  const searchRef = useRef<HTMLInputElement>(null)
 
   const openCompose = (defaults: { to?: string; subject?: string; body?: string }) => {
     setComposeDefaults(defaults)
@@ -260,19 +266,107 @@ function MailContent() {
               </div>
             </div>
             {/* Search */}
-            <div className="p-3">
+            <div className="relative p-3">
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Buscar" className="pl-8 h-9" />
+                <Input
+                  ref={searchRef}
+                  placeholder="Buscar"
+                  className="pl-8 pr-8 h-9"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  onFocus={() => setSearchFocused(true)}
+                  onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && searchInput.trim()) {
+                      searchMessages(searchInput.trim(), "subject")
+                      setSearchFocused(false)
+                    }
+                    if (e.key === "Escape") {
+                      setSearchInput("")
+                      clearSearch()
+                      searchRef.current?.blur()
+                    }
+                  }}
+                />
+                {(searchInput || state.searchResults) && (
+                  <button
+                    className="absolute right-2 top-2 p-0.5 rounded-sm hover:bg-muted"
+                    onClick={() => {
+                      setSearchInput("")
+                      clearSearch()
+                      searchRef.current?.focus()
+                    }}
+                  >
+                    <X className="h-3.5 w-3.5 text-muted-foreground" />
+                  </button>
+                )}
               </div>
+
+              {/* Suggestions dropdown */}
+              {searchFocused && searchInput.trim() && !state.searchResults && (
+                <div className="absolute left-3 right-3 top-full z-10 mt-1 rounded-md border bg-popover p-2 shadow-md">
+                  <p className="px-2 pb-1.5 text-xs font-semibold text-muted-foreground">
+                    Sugerencias
+                  </p>
+                  <button
+                    className="flex w-full items-center gap-2.5 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
+                    onMouseDown={(e) => {
+                      e.preventDefault()
+                      searchMessages(searchInput.trim(), "from")
+                      setSearchFocused(false)
+                    }}
+                  >
+                    <CircleUser className="h-4 w-4 text-primary" />
+                    <span>
+                      El remitente incluye: <strong>{searchInput.trim()}</strong>
+                    </span>
+                  </button>
+                  <button
+                    className="flex w-full items-center gap-2.5 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
+                    onMouseDown={(e) => {
+                      e.preventDefault()
+                      searchMessages(searchInput.trim(), "subject")
+                      setSearchFocused(false)
+                    }}
+                  >
+                    <Mail className="h-4 w-4 text-primary" />
+                    <span>
+                      El asunto incluye: <strong>{searchInput.trim()}</strong>
+                    </span>
+                  </button>
+                </div>
+              )}
             </div>
-            {state.loading ? (
+
+            {state.searching ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : state.loading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
             ) : state.error ? (
               <div className="p-4 text-center text-sm text-destructive">
                 {state.error}
+              </div>
+            ) : state.searchResults ? (
+              <div className="flex-1 overflow-hidden">
+                <div className="px-4 py-2 text-xs text-muted-foreground border-b">
+                  {state.searchResults.length} {state.searchResults.length === 1 ? "resultado" : "resultados"}
+                  {" — "}
+                  {state.searchField === "from" ? "remitente" : state.searchField === "subject" ? "asunto" : "mensaje"}
+                  {': "'}
+                  {state.searchQuery}
+                  {'"'}
+                </div>
+                <MailList
+                  items={state.searchResults}
+                  onReply={handleReply}
+                  onReplyAll={handleReplyAll}
+                  onForward={handleForward}
+                />
               </div>
             ) : (
               <>

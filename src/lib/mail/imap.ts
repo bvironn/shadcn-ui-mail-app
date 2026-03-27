@@ -238,6 +238,48 @@ export async function moveMessage(
   }
 }
 
+export type SearchField = "from" | "subject" | "body"
+
+export async function searchMessages(
+  creds: MailCredentials,
+  folder: string,
+  query: string,
+  field: SearchField
+): Promise<MailEnvelope[]> {
+  const client = await getClient(creds)
+  const lock = await client.getMailboxLock(folder)
+
+  try {
+    const searchQuery: Record<string, string> = {}
+    if (field === "from") searchQuery.from = query
+    else if (field === "subject") searchQuery.subject = query
+    else searchQuery.body = query
+
+    const result = await client.search(searchQuery, { uid: true })
+    const uids = Array.isArray(result) ? result : []
+
+    if (uids.length === 0) return []
+
+    const uidList = uids.slice(-100).join(",")
+    const messages: MailEnvelope[] = []
+
+    for await (const msg of client.fetch(uidList, {
+      envelope: true,
+      flags: true,
+    }, { uid: true })) {
+      messages.push(extractEnvelope(msg))
+    }
+
+    messages.sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    )
+
+    return messages
+  } finally {
+    lock.release()
+  }
+}
+
 export async function deleteMessage(
   creds: MailCredentials,
   folder: string,

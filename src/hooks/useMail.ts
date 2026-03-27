@@ -7,6 +7,8 @@ interface UserInfo {
   name: string
 }
 
+type SearchField = "from" | "subject" | "body"
+
 interface MailState {
   selectedUid: number | null
   selectedMessage: MailMessage | null
@@ -17,6 +19,10 @@ interface MailState {
   error: string | null
   total: number
   user: UserInfo | null
+  searchQuery: string
+  searchField: SearchField
+  searchResults: MailEnvelope[] | null
+  searching: boolean
 }
 
 interface MailContextType {
@@ -30,6 +36,8 @@ interface MailContextType {
   toggleRead: (uid: number, seen: boolean) => Promise<void>
   toggleFlagged: (uid: number, flagged: boolean) => Promise<void>
   moveMessage: (uid: number, destination: string) => Promise<void>
+  searchMessages: (query: string, field: SearchField) => Promise<void>
+  clearSearch: () => void
 }
 
 export const MailContext = createContext<MailContextType | null>(null)
