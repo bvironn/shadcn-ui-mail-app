@@ -21,24 +21,28 @@ export const POST: APIRoute = async ({ request, session }) => {
 
     const imapHost = process.env.IMAP_HOST
     const smtpHost = process.env.SMTP_HOST
-    console.log("[LOGIN] Env vars:", { imapHost, smtpHost, imapPort: process.env.IMAP_PORT, smtpPort: process.env.SMTP_PORT })
+    const mailDomain = process.env.MAIL_DOMAIN
+    console.log("[LOGIN] Env vars:", { imapHost, smtpHost, mailDomain, imapPort: process.env.IMAP_PORT, smtpPort: process.env.SMTP_PORT })
 
-    if (!imapHost || !smtpHost) {
+    if (!imapHost || !smtpHost || !mailDomain) {
       console.log("[LOGIN] Missing env vars!")
       return Response.json(
-        { error: "Mail server not configured. Check IMAP_HOST and SMTP_HOST env vars." },
+        { error: "Mail server not configured. Check IMAP_HOST, SMTP_HOST and MAIL_DOMAIN env vars." },
         { status: 500 }
       )
     }
+
+    const username = parsed.data.username
+    const email = username.includes("@") ? username : `${username}@${mailDomain}`
 
     const creds: MailCredentials = {
       imapHost,
       imapPort: Number(process.env.IMAP_PORT || 993),
       smtpHost,
       smtpPort: Number(process.env.SMTP_PORT || 587),
-      email: parsed.data.email,
+      email,
       password: parsed.data.password,
-      name: parsed.data.email.split("@")[0],
+      name: username.includes("@") ? username.split("@")[0] : username,
     }
     console.log("[LOGIN] Creds built, verifying IMAP connection...")
 

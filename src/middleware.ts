@@ -2,7 +2,7 @@ import { defineMiddleware } from "astro:middleware"
 
 import { getCredentials } from "@/lib/auth"
 
-const PUBLIC_PATHS = ["/login", "/api/auth/login"]
+const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/logout"]
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const { pathname } = context.url

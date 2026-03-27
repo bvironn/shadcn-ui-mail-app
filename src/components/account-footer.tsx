@@ -16,7 +16,11 @@ interface AccountFooterProps {
 
 export function AccountFooter({ isCollapsed, email, name }: AccountFooterProps) {
   const handleLogout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" })
+    try {
+      await fetch("/api/auth/logout", { method: "POST" })
+    } catch {
+      // Redirigir al login aunque falle el fetch
+    }
     window.location.href = "/login"
   }
 

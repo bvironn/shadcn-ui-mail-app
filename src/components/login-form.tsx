@@ -19,10 +19,10 @@ export function LoginForm() {
 
     try {
       const payload = {
-        email: formData.get("email"),
+        username: formData.get("username"),
         password: formData.get("password"),
       }
-      console.log("[LOGIN-UI] Sending login request:", { email: payload.email, hasPassword: !!payload.password })
+      console.log("[LOGIN-UI] Sending login request:", { username: payload.username, hasPassword: !!payload.password })
 
       const res = await fetch("/api/auth/login", {
         method: "POST",
@@ -75,12 +75,13 @@ export function LoginForm() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid gap-2">
-            <Label htmlFor="email">Correo</Label>
+            <Label htmlFor="username">Usuario</Label>
             <Input
-              id="email"
-              name="email"
-              type="email"
-              placeholder="tu@ejemplo.com"
+              id="username"
+              name="username"
+              type="text"
+              placeholder="admin"
+              autoComplete="username"
               required
             />
           </div>
