@@ -21,13 +21,13 @@ export const POST: APIRoute = async ({ request, session }) => {
 
     const imapHost = process.env.IMAP_HOST
     const smtpHost = process.env.SMTP_HOST
-    const mailDomain = process.env.MAIL_DOMAIN
+    const mailDomain = process.env.MAIL_DOMAIN ?? imapHost?.replace(/^mail\./, "")
     console.log("[LOGIN] Env vars:", { imapHost, smtpHost, mailDomain, imapPort: process.env.IMAP_PORT, smtpPort: process.env.SMTP_PORT })
 
-    if (!imapHost || !smtpHost || !mailDomain) {
+    if (!imapHost || !smtpHost) {
       console.log("[LOGIN] Missing env vars!")
       return Response.json(
-        { error: "Mail server not configured. Check IMAP_HOST, SMTP_HOST and MAIL_DOMAIN env vars." },
+        { error: "Mail server not configured. Check IMAP_HOST and SMTP_HOST env vars." },
         { status: 500 }
       )
     }
