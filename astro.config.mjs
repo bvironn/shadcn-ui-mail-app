@@ -6,6 +6,7 @@ import tailwindcss from "@tailwindcss/vite"
 export default defineConfig({
   output: "server",
   adapter: node({ mode: "standalone" }),
+  server: { host: "0.0.0.0", port: 4321 },
   integrations: [react()],
   session: {
     cookie: {
