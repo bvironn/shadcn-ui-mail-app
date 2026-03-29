@@ -21,14 +21,15 @@ export function AccountFooter({ isCollapsed, email, name }: AccountFooterProps) 
         <ThemeToggle />
         <Tooltip delayDuration={0}>
           <TooltipTrigger asChild>
-            <a href="/logout">
-              <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                <span>
-                  <LogOut className="h-4 w-4" />
-                  <span className="sr-only">Logout</span>
-                </span>
-              </Button>
-            </a>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => { window.location.href = "/logout" }}
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="sr-only">Logout</span>
+            </Button>
           </TooltipTrigger>
           <TooltipContent side="right">Cerrar sesion ({email})</TooltipContent>
         </Tooltip>
@@ -49,14 +50,15 @@ export function AccountFooter({ isCollapsed, email, name }: AccountFooterProps) 
       </div>
       <div className="flex items-center justify-between">
         <ThemeToggle />
-        <a href="/logout">
-          <Button variant="ghost" size="sm" className="h-8 text-xs" asChild>
-            <span>
-              <LogOut className="mr-1 h-3 w-3" />
-              Salir
-            </span>
-          </Button>
-        </a>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 text-xs"
+          onClick={() => { window.location.href = "/logout" }}
+        >
+          <LogOut className="mr-1 h-3 w-3" />
+          Salir
+        </Button>
       </div>
     </div>
   )
