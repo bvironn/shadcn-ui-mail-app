@@ -32,11 +32,11 @@ export function ComposeModal({ open, onOpenChange, defaults }: ComposeModalProps
   const [formData, setFormData] = useState({ to: "", subject: "", body: "" })
 
   useEffect(() => {
-    if (open) {
+    if (open && defaults && (defaults.to || defaults.subject || defaults.body)) {
       setFormData({
-        to: defaults?.to ?? "",
-        subject: defaults?.subject ?? "",
-        body: defaults?.body ?? "",
+        to: defaults.to ?? "",
+        subject: defaults.subject ?? "",
+        body: defaults.body ?? "",
       })
     }
   }, [open, defaults])
@@ -60,12 +60,7 @@ export function ComposeModal({ open, onOpenChange, defaults }: ComposeModalProps
   }
 
   return (
-    <Dialog open={open} onOpenChange={(newOpen) => {
-      if (!newOpen) {
-        setFormData({ to: "", subject: "", body: "" })
-      }
-      onOpenChange(newOpen)
-    }}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Nuevo mensaje</DialogTitle>
