@@ -234,11 +234,26 @@ export function MailDisplay({ onReply }: MailDisplayProps) {
   )
 }
 
+function sanitizeLinks(html: string): string {
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(html, "text/html")
+  doc.querySelectorAll("a[href]").forEach((anchor) => {
+    anchor.setAttribute("target", "_blank")
+    anchor.setAttribute("rel", "noopener noreferrer")
+  })
+  return doc.body?.innerHTML ?? html
+}
+
 function MailIframe({ html }: { html: string }) {
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const [isDark, setIsDark] = useState(
     () => document.documentElement.classList.contains("dark")
   )
+  const sanitizedHtml = useRef(sanitizeLinks(html))
+
+  useEffect(() => {
+    sanitizedHtml.current = sanitizeLinks(html)
+  }, [html])
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -292,7 +307,7 @@ function MailIframe({ html }: { html: string }) {
             table { max-width: 100%; }
           </style>
         </head>
-        <body class="${isDark ? "dark-filter" : ""}">${html}</body>
+        <body class="${isDark ? "dark-filter" : ""}">${sanitizedHtml.current}</body>
       </html>
     `)
     doc.close()

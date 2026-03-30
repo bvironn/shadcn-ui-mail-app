@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Loader2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -29,19 +29,28 @@ export function ComposeModal({ open, onOpenChange, defaults }: ComposeModalProps
   const { sendNewMail } = useMail()
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [formData, setFormData] = useState({ to: "", subject: "", body: "" })
+
+  useEffect(() => {
+    if (open) {
+      setFormData({
+        to: defaults?.to ?? "",
+        subject: defaults?.subject ?? "",
+        body: defaults?.body ?? "",
+      })
+    }
+  }, [open, defaults])
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setSending(true)
     setError(null)
 
-    const formData = new FormData(e.currentTarget)
-    const to = (formData.get("to") as string).split(",").map((s) => s.trim()).filter(Boolean)
-    const subject = formData.get("subject") as string
-    const text = formData.get("body") as string
+    const to = formData.to.split(",").map((s) => s.trim()).filter(Boolean)
 
     try {
-      await sendNewMail(to, subject, text)
+      await sendNewMail(to, formData.subject, formData.body)
+      setFormData({ to: "", subject: "", body: "" })
       onOpenChange(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send")
@@ -51,7 +60,12 @@ export function ComposeModal({ open, onOpenChange, defaults }: ComposeModalProps
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(newOpen) => {
+      if (!newOpen) {
+        setFormData({ to: "", subject: "", body: "" })
+      }
+      onOpenChange(newOpen)
+    }}>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Nuevo mensaje</DialogTitle>
@@ -67,8 +81,8 @@ export function ComposeModal({ open, onOpenChange, defaults }: ComposeModalProps
             <Input
               id="to"
               name="to"
-              key={defaults?.to}
-              defaultValue={defaults?.to}
+              value={formData.to}
+              onChange={(e) => setFormData({ ...formData, to: e.target.value })}
               placeholder="destinatario@ejemplo.com, otro@ejemplo.com"
               required
             />
@@ -78,8 +92,8 @@ export function ComposeModal({ open, onOpenChange, defaults }: ComposeModalProps
             <Input
               id="subject"
               name="subject"
-              key={defaults?.subject}
-              defaultValue={defaults?.subject}
+              value={formData.subject}
+              onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
               placeholder="Asunto"
               required
             />
@@ -89,8 +103,8 @@ export function ComposeModal({ open, onOpenChange, defaults }: ComposeModalProps
             <Textarea
               id="body"
               name="body"
-              key={defaults?.body}
-              defaultValue={defaults?.body}
+              value={formData.body}
+              onChange={(e) => setFormData({ ...formData, body: e.target.value })}
               placeholder="Escribe tu mensaje..."
               className="min-h-48"
               required

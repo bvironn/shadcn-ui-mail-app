@@ -43,7 +43,7 @@ import { useMail } from "@/hooks/useMail"
 function MailContent() {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [composeOpen, setComposeOpen] = useState(false)
-  const [composeDefaults, setComposeDefaults] = useState<{
+  const [composeDraft, setComposeDraft] = useState<{
     to?: string
     subject?: string
     body?: string
@@ -53,8 +53,8 @@ function MailContent() {
   const [searchFocused, setSearchFocused] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
 
-  const openCompose = (defaults: { to?: string; subject?: string; body?: string }) => {
-    setComposeDefaults(defaults)
+  const openCompose = (defaults: { to?: string; subject?: string; body?: string } = {}) => {
+    setComposeDraft(defaults)
     setComposeOpen(true)
   }
 
@@ -394,7 +394,7 @@ function MailContent() {
         {/* Mail display panel */}
         <div className="flex flex-1 flex-col">
           <MailDisplay onReply={(defaults) => {
-            setComposeDefaults(defaults)
+            setComposeDraft(defaults)
             setComposeOpen(true)
           }} />
         </div>
@@ -404,9 +404,9 @@ function MailContent() {
         open={composeOpen}
         onOpenChange={(open) => {
           setComposeOpen(open)
-          if (!open) setComposeDefaults({})
+          if (!open) setComposeDraft({})
         }}
-        defaults={composeDefaults}
+        defaults={composeDraft}
       />
     </TooltipProvider>
   )
