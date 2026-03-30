@@ -402,7 +402,7 @@ function MailContent() {
 
       <ComposeModal
         open={composeOpen}
-        onOpenChange={setComposeOpen}}
+        onOpenChange={setComposeOpen}
         defaults={composeDraft}
       />
     </TooltipProvider>
