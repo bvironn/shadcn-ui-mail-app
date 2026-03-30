@@ -1,7 +1,10 @@
 import { defineConfig } from "astro/config"
+import { execSync } from "child_process"
 import react from "@astrojs/react"
 import node from "@astrojs/node"
 import tailwindcss from "@tailwindcss/vite"
+
+const commitHash = execSync("git rev-parse --short HEAD").toString().trim()
 
 export default defineConfig({
   output: "server",
@@ -18,5 +21,8 @@ export default defineConfig({
   },
   vite: {
     plugins: [tailwindcss()],
+    define: {
+      __COMMIT_HASH__: JSON.stringify(commitHash),
+    },
   },
 })
