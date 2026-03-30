@@ -328,7 +328,7 @@ function MailIframe({ html }: { html: string }) {
     <iframe
       ref={iframeRef}
       className="w-full border-0"
-      sandbox="allow-same-origin allow-popups"
+      sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
       title="Contenido del correo"
       style={{ minHeight: 200 }}
     />
